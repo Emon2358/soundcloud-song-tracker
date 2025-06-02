@@ -1,0 +1,54 @@
+name: Update SoundCloud Tracks in README
+
+# 手動で実行できるように workflow_dispatch を設定
+on:
+  workflow_dispatch:
+    inputs:
+      soundcloud_username:
+        description: 'SoundCloud のユーザーネーム（プロファイルURLの末尾）'
+        required: true
+        default: ''
+
+jobs:
+  fetch-and-update:
+    name: Fetch SoundCloud Tracks and Update README
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. レポジトリをチェックアウト
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. Python をセットアップ (バージョン 3.8 以上)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      # 3. 依存ライブラリをインストール
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      # 4. スクリプト実行
+      - name: Fetch and update README.md
+        env:
+          # workflow_dispatch の input がそのまま INPUT_ プレフィックス付きで渡される
+          INPUT_SOUNDCLOUD_USERNAME: ${{ github.event.inputs.soundcloud_username }}
+        run: |
+          python scripts/fetch_soundcloud_tracks.py
+
+      # 5. 変更があればコミット＆プッシュする
+      - name: Commit and push changes
+        run: |
+          # 変更があるかどうか確認
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore: Update SoundCloud tracks for ${{ github.event.inputs.soundcloud_username }}"
+            git push
+          else
+            echo "No changes detected. Skipping commit."
+          fi
